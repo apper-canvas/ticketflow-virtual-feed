@@ -1,4 +1,6 @@
-import { delay } from '../index';
+// Utility function for delays to avoid circular import
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
 import agentsData from '../mockData/agents.json';
 
 class AgentService {
@@ -53,7 +55,7 @@ class AgentService {
       throw new Error('Agent not found');
     }
     
-this.agents.splice(index, 1);
+    this.agents.splice(index, 1);
     return { success: true };
   }
 
@@ -62,3 +64,6 @@ this.agents.splice(index, 1);
     return this.getAll();
   }
 }
+
+// Export instance as default to match other service patterns
+export default new AgentService();
