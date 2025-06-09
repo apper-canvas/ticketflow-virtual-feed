@@ -96,7 +96,41 @@ return { success: true };
 
   async getByAssignee(assigneeId) {
     await delay(200);
-    return this.tickets.filter(t => t.assigneeId === assigneeId);
+return this.tickets.filter(t => t.assigneeId === assigneeId);
+  }
+
+  async findSimilarTickets(subject) {
+    await delay(200);
+    const lowercaseSubject = subject.toLowerCase();
+    const words = lowercaseSubject.split(' ').filter(word => word.length > 2);
+    
+    if (words.length === 0) return [];
+    
+    return this.tickets
+      .filter(ticket => {
+        const ticketSubject = ticket.subject.toLowerCase();
+        return words.some(word => ticketSubject.includes(word));
+      })
+      .sort((a, b) => {
+        // Simple scoring based on word matches
+        const aMatches = words.filter(word => a.subject.toLowerCase().includes(word)).length;
+        const bMatches = words.filter(word => b.subject.toLowerCase().includes(word)).length;
+        return bMatches - aMatches;
+      })
+      .slice(0, 5);
+  }
+
+  async bulkDelete(ticketIds) {
+    await delay(400);
+    const deletedCount = ticketIds.length;
+    
+    this.tickets = this.tickets.filter(ticket => !ticketIds.includes(ticket.id));
+    
+    return { 
+      success: true, 
+      deletedCount,
+      message: `Successfully deleted ${deletedCount} ticket${deletedCount > 1 ? 's' : ''}` 
+    };
   }
 }
 

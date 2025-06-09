@@ -1,33 +1,44 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, Filter, Calendar, Users, Clock, CheckCircle2, AlertTriangle, Plus, LayoutGrid, List } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { ticketService, customerService, agentService, internalNoteService } from '@/services';
+import Button from '@/components/atoms/Button';
+import Input from '@/components/atoms/Input';
+import Select from '@/components/atoms/Select';
+import Badge from '@/components/atoms/Badge';
+import ToggleSwitch from '@/components/atoms/ToggleSwitch';
 import TicketListFilters from './TicketListFilters';
 import TicketListView from './TicketListView';
 import TicketsTable from './TicketsTable';
 import TicketDetailView from './TicketDetailView';
-import BulkActionsBar from '@/components/molecules/BulkActionsBar';
+import NewTicketForm from './NewTicketForm';
 import LoadingState from './LoadingState';
 import ErrorState from './ErrorState';
+import BulkActionsBar from './BulkActionsBar';
+import ticketService from '@/services/ticketService';
+import customerService from '@/services/customerService';
+import agentService from '@/services/agentService';
+import internalNoteService from '@/services/internalNoteService';
 
 function TicketManagementSystem() {
-    const [tickets, setTickets] = useState([]);
-    const [customers, setCustomers] = useState([]);
-    const [agents, setAgents] = useState([]);
-    const [selectedTicket, setSelectedTicket] = useState(null);
-    const [internalNotes, setInternalNotes] = useState([]);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [filters, setFilters] = useState({
-        status: 'all',
-        priority: 'all',
-        assignee: 'all',
-    });
-    const [searchQuery, setSearchQuery] = useState('');
-    const [viewMode, setViewMode] = useState('table'); // 'list' or 'table'
-    const [selectedTickets, setSelectedTickets] = useState(new Set());
-    const [newNote, setNewNote] = useState('');
-    const [addingNote, setAddingNote] = useState(false);
+const [tickets, setTickets] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [agents, setAgents] = useState([]);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filters, setFilters] = useState({
+    status: 'all',
+    priority: 'all',
+    assignee: 'all'
+  });
+  const [viewMode, setViewMode] = useState('table');
+  const [showNewTicketForm, setShowNewTicketForm] = useState(false);
+  const [selectedTickets, setSelectedTickets] = useState(new Set());
+  const [internalNotes, setInternalNotes] = useState([]);
+  const [newNote, setNewNote] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
 
     useEffect(() => {
         loadData();
@@ -94,7 +105,7 @@ function TicketManagementSystem() {
         }
     };
 
-    const handleAddNote = async () => {
+const handleAddNote = async () => {
         if (!newNote.trim() || !selectedTicket) return;
 
         setAddingNote(true);
@@ -116,7 +127,7 @@ function TicketManagementSystem() {
         }
     };
 
-const handleFilterChange = (filterName, value) => {
+    const handleFilterChange = (filterName, value) => {
         setFilters((prev) => ({ ...prev, [filterName]: value }));
     };
 
@@ -124,27 +135,41 @@ const handleFilterChange = (filterName, value) => {
         setSearchQuery(query);
     };
 
-    const handleViewModeChange = (mode) => {
+const handleViewModeChange = (mode) => {
         setViewMode(mode);
-        setSelectedTickets(new Set()); // Clear selections when switching views
+        setSelectedTickets(new Set());
     };
 
-    const handleBulkAssign = async (ticketIds, agentId) => {
-        try {
-            await ticketService.bulkUpdate(ticketIds, { assigneeId: agentId });
-            const updatedTickets = tickets.map(ticket => 
-                ticketIds.includes(ticket.id) 
-                    ? { ...ticket, assigneeId: agentId, updatedAt: new Date().toISOString() }
-                    : ticket
-            );
-            setTickets(updatedTickets);
-            
-            const agent = agents.find(a => a.id === agentId);
-            toast.success(`${ticketIds.length} ticket${ticketIds.length !== 1 ? 's' : ''} assigned to ${agent?.name || 'agent'}`);
-        } catch (err) {
-            toast.error('Failed to assign tickets');
-        }
-    };
+  const handleTicketUpdate = (updatedTicket) => {
+    setTickets(prevTickets => 
+      prevTickets.map(ticket => 
+        ticket.id === updatedTicket.id ? updatedTicket : ticket
+      )
+    );
+    setSelectedTicket(updatedTicket);
+  };
+
+  const handleNewTicketSuccess = (newTicket) => {
+    setTickets(prevTickets => [newTicket, ...prevTickets]);
+    setSelectedTicket(newTicket);
+};
+
+  const handleBulkAssign = async (ticketIds, agentId) => {
+    try {
+      await ticketService.bulkUpdate(ticketIds, { assigneeId: agentId });
+      const updatedTickets = tickets.map(ticket => 
+        ticketIds.includes(ticket.id) 
+          ? { ...ticket, assigneeId: agentId, updatedAt: new Date().toISOString() }
+          : ticket
+      );
+      setTickets(updatedTickets);
+      
+      const agent = agents.find(a => a.id === agentId);
+      toast.success(`${ticketIds.length} ticket${ticketIds.length !== 1 ? 's' : ''} assigned to ${agent?.name || 'agent'}`);
+    } catch (err) {
+      toast.error('Failed to assign tickets');
+    }
+  };
 
     const handleBulkStatusChange = async (ticketIds, status) => {
         try {
@@ -162,18 +187,21 @@ const handleFilterChange = (filterName, value) => {
         }
     };
 
-    const filteredTickets = useMemo(() => {
+const filteredTickets = useMemo(() => {
         return tickets.filter((ticket) => {
             // Status filter
-            if (filters.status !== 'all' && ticket.status !== filters.status) return false;
+            if (filters.status !== 'all' && ticket.status !== filters.status) {
+                return false;
+            }
             
             // Priority filter
-            if (filters.priority !== 'all' && ticket.priority !== filters.priority) return false;
+            if (filters.priority !== 'all' && ticket.priority !== filters.priority) {
+                return false;
+            }
             
             // Assignee filter
-            if (filters.assignee !== 'all') {
-                if (filters.assignee === 'unassigned' && ticket.assigneeId) return false;
-                if (filters.assignee !== 'unassigned' && ticket.assigneeId !== filters.assignee) return false;
+            if (filters.assignee !== 'all' && ticket.assigneeId !== filters.assignee) {
+                return false;
             }
             
             // Search filter
@@ -204,7 +232,31 @@ const handleFilterChange = (filterName, value) => {
     }
 
 return (
-        <div className="h-full flex flex-col max-w-full overflow-hidden relative">
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="h-full flex flex-col max-w-full overflow-hidden relative"
+        >
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                <div className="flex items-center gap-4">
+                    <h1 className="text-2xl font-bold text-gray-900">Support Tickets</h1>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-500">Total:</span>
+                        <Badge variant="secondary">{filteredTickets.length}</Badge>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <Button
+                        onClick={() => setShowNewTicketForm(true)}
+                        className="flex items-center gap-2"
+                    >
+                        <Plus size={16} />
+                        New Ticket
+                    </Button>
+                </div>
+            </div>
+
             {/* Bulk Actions Bar */}
             <BulkActionsBar
                 selectedCount={selectedTickets.size}
@@ -260,18 +312,27 @@ return (
                             ticket={selectedTicket}
                             customers={customers}
                             agents={agents}
-                            notes={internalNotes}
+                            onTicketUpdate={handleTicketUpdate}
                             onStatusChange={handleStatusChange}
                             onAssignTicket={handleAssignTicket}
-                            newNote={newNote}
-                            onNewNoteChange={setNewNote}
+                            internalNotes={internalNotes}
                             onAddNote={handleAddNote}
+                            newNote={newNote}
+                            setNewNote={setNewNote}
                             addingNote={addingNote}
                         />
                     </div>
                 </AnimatePresence>
             </div>
-        </div>
+
+            <NewTicketForm
+                isOpen={showNewTicketForm}
+                onClose={() => setShowNewTicketForm(false)}
+                onSuccess={handleNewTicketSuccess}
+                customers={customers}
+                agents={agents}
+            />
+        </motion.div>
     );
 }
 
