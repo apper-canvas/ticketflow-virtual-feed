@@ -12,13 +12,13 @@ import TicketListView from './TicketListView';
 import TicketsTable from './TicketsTable';
 import TicketDetailView from './TicketDetailView';
 import NewTicketForm from './NewTicketForm';
-import LoadingState from './LoadingState';
-import ErrorState from './ErrorState';
-import BulkActionsBar from './BulkActionsBar';
-import ticketService from '@/services/ticketService';
-import customerService from '@/services/customerService';
-import agentService from '@/services/agentService';
-import internalNoteService from '@/services/internalNoteService';
+import LoadingState from '@/components/organisms/LoadingState';
+import ErrorState from '@/components/organisms/ErrorState';
+import BulkActionsBar from '@/components/molecules/BulkActionsBar';
+import ticketService from '@/services/api/ticketService';
+import customerService from '@/services/api/customerService';
+import agentService from '@/services/api/agentService';
+import internalNoteService from '@/services/api/internalNoteService';
 
 function TicketManagementSystem() {
 const [tickets, setTickets] = useState([]);
