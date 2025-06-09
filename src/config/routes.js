@@ -1,8 +1,8 @@
-import Home from '../pages/Home';
-import Dashboard from '../pages/Dashboard';
-import Customers from '../pages/Customers';
-import Reports from '../pages/Reports';
-import Settings from '../pages/Settings';
+import HomePage from '@/components/pages/HomePage';
+import DashboardPage from '@/components/pages/DashboardPage';
+import CustomersPage from '@/components/pages/CustomersPage';
+import ReportsPage from '@/components/pages/ReportsPage';
+import SettingsPage from '@/components/pages/SettingsPage';
 
 export const routes = {
   inbox: {
@@ -10,35 +10,35 @@ export const routes = {
     label: 'Inbox',
     path: '/inbox',
     icon: 'Inbox',
-    component: Home
+component: HomePage
   },
   dashboard: {
     id: 'dashboard',
     label: 'Dashboard',
     path: '/dashboard',
     icon: 'BarChart3',
-    component: Dashboard
+component: DashboardPage
   },
   customers: {
     id: 'customers',
     label: 'Customers',
     path: '/customers',
     icon: 'Users',
-    component: Customers
+component: CustomersPage
   },
   reports: {
     id: 'reports',
     label: 'Reports',
     path: '/reports',
     icon: 'FileText',
-    component: Reports
+component: ReportsPage
   },
   settings: {
     id: 'settings',
     label: 'Settings',
     path: '/settings',
     icon: 'Settings',
-    component: Settings
+component: SettingsPage
   }
 };
 
