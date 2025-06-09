@@ -59,7 +59,7 @@ class AgentService {
     return { success: true };
   }
 
-  // Alias method for consistency with other services
+// Alias method for consistency with other services
   async getAllAgents() {
     return this.getAll();
   }
