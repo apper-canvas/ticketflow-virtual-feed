@@ -99,24 +99,58 @@ return { success: true };
 return this.tickets.filter(t => t.assigneeId === assigneeId);
   }
 
-  async findSimilarTickets(subject) {
-    await delay(200);
-    const lowercaseSubject = subject.toLowerCase();
-    const words = lowercaseSubject.split(' ').filter(word => word.length > 2);
+async findSimilarTickets(subject, description = '') {
+    await delay(300);
+    
+    const query = `${subject} ${description}`.toLowerCase();
+    const words = query.split(' ')
+      .filter(word => word.length > 2)
+      .filter(word => !['the', 'and', 'but', 'for', 'are', 'with', 'this', 'that', 'from'].includes(word));
     
     if (words.length === 0) return [];
     
     return this.tickets
-      .filter(ticket => {
-        const ticketSubject = ticket.subject.toLowerCase();
-        return words.some(word => ticketSubject.includes(word));
+      .map(ticket => {
+        const ticketText = `${ticket.subject} ${ticket.description}`.toLowerCase();
+        const ticketWords = ticketText.split(' ');
+        
+        // Calculate similarity score
+        let score = 0;
+        
+        // Exact phrase matches (higher weight)
+        if (subject && ticketText.includes(subject.toLowerCase())) {
+          score += 10;
+        }
+        
+        // Word matches in subject (higher weight)
+        const subjectMatches = words.filter(word => 
+          ticket.subject.toLowerCase().includes(word)
+        ).length;
+        score += subjectMatches * 3;
+        
+        // Word matches in description
+        const descriptionMatches = words.filter(word => 
+          ticket.description.toLowerCase().includes(word)
+        ).length;
+        score += descriptionMatches * 1;
+        
+        // Tag matches
+        if (ticket.tags) {
+          const tagMatches = words.filter(word =>
+            ticket.tags.some(tag => tag.toLowerCase().includes(word))
+          ).length;
+          score += tagMatches * 2;
+        }
+        
+        // Boost resolved tickets (they have solutions)
+        if (ticket.status === 'resolved') {
+          score += 1;
+        }
+        
+        return { ...ticket, similarityScore: score };
       })
-      .sort((a, b) => {
-        // Simple scoring based on word matches
-        const aMatches = words.filter(word => a.subject.toLowerCase().includes(word)).length;
-        const bMatches = words.filter(word => b.subject.toLowerCase().includes(word)).length;
-        return bMatches - aMatches;
-      })
+      .filter(ticket => ticket.similarityScore > 0)
+      .sort((a, b) => b.similarityScore - a.similarityScore)
       .slice(0, 5);
   }
 

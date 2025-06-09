@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertCircle, Lightbulb } from 'lucide-react';
+import { X, AlertCircle, ExternalLink } from 'lucide-react';
 import { toast } from 'react-toastify';
 import Button from '@/components/atoms/Button';
 import Input from '@/components/atoms/Input';
@@ -8,7 +8,7 @@ import TextArea from '@/components/atoms/TextArea';
 import Select from '@/components/atoms/Select';
 import MultiSelect from '@/components/atoms/MultiSelect';
 import FileUpload from '@/components/atoms/FileUpload';
-import Badge from '@/components/atoms/Badge';
+import SimilarTicketSuggestions from '@/components/atoms/SimilarTicketSuggestions';
 import ticketService from '@/services/api/ticketService';
 import customerService from '@/services/api/customerService';
 import agentService from '@/services/api/agentService';
@@ -45,34 +45,56 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
-  const [customers, setCustomers] = useState([]);
+const [customers, setCustomers] = useState([]);
   const [agents, setAgents] = useState([]);
   const [similarTickets, setSimilarTickets] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-
+  const [selectedTicket, setSelectedTicket] = useState(null);
   useEffect(() => {
     if (isOpen) {
       loadCustomers();
       loadAgents();
     }
   }, [isOpen]);
-
-  useEffect(() => {
-    // Auto-suggest similar tickets when subject changes
-    const timer = setTimeout(() => {
-      if (formData.subject.length > 3) {
-        findSimilarTickets(formData.subject);
+// Debounced search for similar tickets
+  const debouncedSearch = useCallback((query) => {
+    const timer = setTimeout(async () => {
+      if (query && query.length > 3) {
+        setSuggestionsLoading(true);
+        try {
+          const similar = await ticketService.findSimilarTickets(query, formData.description);
+          setSimilarTickets(similar.slice(0, 5));
+          setShowSuggestions(true);
+        } catch (error) {
+          console.error('Failed to find similar tickets:', error);
+          setSimilarTickets([]);
+          setShowSuggestions(false);
+        } finally {
+          setSuggestionsLoading(false);
+        }
       } else {
         setSimilarTickets([]);
         setShowSuggestions(false);
       }
-    }, 500);
+    }, 300); // 300ms debounce
 
     return () => clearTimeout(timer);
-  }, [formData.subject]);
+  }, [formData.description]);
+
+  useEffect(() => {
+    const cleanup = debouncedSearch(formData.subject);
+    return cleanup;
+}, [formData.subject, debouncedSearch]);
+
+  useEffect(() => {
+    const cleanup = debouncedSearch(formData.description);
+    return cleanup;
+  }, [formData.description, debouncedSearch]);
 
   const loadCustomers = async () => {
+const loadCustomers = async () => {
     try {
       const data = await customerService.getAll();
       setCustomers(data.map(customer => ({
@@ -83,7 +105,6 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
       console.error('Failed to load customers:', error);
     }
   };
-
   const loadAgents = async () => {
     try {
       const data = await agentService.getAll();
@@ -94,16 +115,18 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
     } catch (error) {
       console.error('Failed to load agents:', error);
     }
+};
+
+  const handleViewTicket = (ticket) => {
+    setSelectedTicket(ticket);
   };
 
-  const findSimilarTickets = async (subject) => {
-    try {
-      const similar = await ticketService.findSimilarTickets(subject);
-      setSimilarTickets(similar.slice(0, 3)); // Show top 3 similar tickets
-      setShowSuggestions(similar.length > 0);
-    } catch (error) {
-      console.error('Failed to find similar tickets:', error);
-    }
+  const handleCloseTicketView = () => {
+    setSelectedTicket(null);
+  };
+
+  const handleCloseSuggestions = () => {
+    setShowSuggestions(false);
   };
 
   const validateForm = () => {
@@ -235,8 +258,7 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
               <X size={20} />
             </Button>
           </div>
-
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+<form onSubmit={handleSubmit} className="flex flex-col h-full">
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -248,8 +270,15 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
                     error={errors.subject}
                     placeholder="Brief description of the issue..."
                   />
+                  
+                  <SimilarTicketSuggestions
+                    suggestions={similarTickets}
+                    loading={suggestionsLoading}
+                    show={showSuggestions}
+                    onViewTicket={handleViewTicket}
+                    onClose={handleCloseSuggestions}
+                  />
                 </div>
-
                 <div className="md:col-span-2">
                   <TextArea
                     label="Description"
@@ -332,55 +361,9 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
                     accept="image/*,.pdf,.doc,.docx,.txt"
                     maxFiles={5}
                     maxSize={10 * 1024 * 1024} // 10MB
-                  />
+/>
                 </div>
               </div>
-
-              <AnimatePresence>
-                {showSuggestions && similarTickets.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="border border-amber-200 bg-amber-50 rounded-lg p-4"
-                  >
-                    <div className="flex items-center gap-2 mb-3">
-                      <Lightbulb size={16} className="text-amber-600" />
-                      <h3 className="text-sm font-medium text-amber-800">
-                        Similar Tickets Found
-                      </h3>
-                    </div>
-                    <div className="space-y-2">
-                      {similarTickets.map(ticket => (
-                        <div
-                          key={ticket.id}
-                          className="flex items-center justify-between p-2 bg-white rounded border"
-                        >
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">
-                              {ticket.subject}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge
-                                variant={ticket.status === 'resolved' ? 'success' : 'secondary'}
-                                size="sm"
-                              >
-                                {ticket.status}
-                              </Badge>
-                              <span className="text-xs text-gray-500">
-                                {ticket.priority} priority
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-amber-700 mt-2">
-                      Consider checking these tickets for existing solutions.
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
 
             <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
@@ -397,11 +380,118 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
                 loading={loading}
                 disabled={loading}
               >
-                Create Ticket
+Create Ticket
               </Button>
             </div>
           </form>
         </motion.div>
+
+        {/* Selected Ticket View Modal */}
+        <AnimatePresence>
+          {selectedTicket && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 overflow-y-auto"
+              onClick={handleCloseTicketView}
+            >
+              <div className="flex min-h-screen items-center justify-center p-4">
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <ExternalLink size={20} className="text-blue-600" />
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        Similar Ticket Details
+                      </h3>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleCloseTicketView}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={20} />
+                    </Button>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Subject</h4>
+                      <p className="text-gray-700">{selectedTicket.subject}</p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Description</h4>
+                      <p className="text-gray-700 whitespace-pre-wrap">{selectedTicket.description}</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Status</h4>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          selectedTicket.status === 'resolved' ? 'bg-green-100 text-green-800' :
+                          selectedTicket.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
+                          selectedTicket.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {selectedTicket.status}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Priority</h4>
+                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                          selectedTicket.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                          selectedTicket.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                          selectedTicket.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
+                          'bg-gray-100 text-gray-800'
+                        }`}>
+                          {selectedTicket.priority}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium text-gray-900 mb-2">Created</h4>
+                      <p className="text-gray-700">
+                        {new Date(selectedTicket.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {selectedTicket.tags && selectedTicket.tags.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">Tags</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedTicket.tags.map(tag => (
+                            <span
+                              key={tag}
+                              className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800"
+                            >
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-end p-6 border-t border-gray-200">
+                    <Button onClick={handleCloseTicketView}>
+                      Close
+                    </Button>
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
