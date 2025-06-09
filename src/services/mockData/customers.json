@@ -1,0 +1,37 @@
+[
+  {
+    "id": "1",
+    "name": "Alex Chen",
+    "email": "alex.chen@techstartup.com",
+    "company": "TechStartup Inc",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Alex+Chen&background=2563EB&color=fff"
+  },
+  {
+    "id": "2", 
+    "name": "Sarah Johnson",
+    "email": "sarah.j@creativestudio.com",
+    "company": "Creative Studio LLC",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Sarah+Johnson&background=2563EB&color=fff"
+  },
+  {
+    "id": "3",
+    "name": "Michael Rodriguez",
+    "email": "m.rodriguez@innovatetech.com",
+    "company": "InnovateTech Solutions",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Michael+Rodriguez&background=2563EB&color=fff"
+  },
+  {
+    "id": "4",
+    "name": "Emma Thompson",
+    "email": "emma.thompson@digitalagency.com",
+    "company": "Digital Agency Pro",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Emma+Thompson&background=2563EB&color=fff"
+  },
+  {
+    "id": "5",
+    "name": "David Park",
+    "email": "david.park@cloudservices.com",
+    "company": "Cloud Services Corp",
+    "avatarUrl": "https://ui-avatars.com/api/?name=David+Park&background=2563EB&color=fff"
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "name": "Sarah Agent",
+    "email": "sarah@ticketflow.com",
+    "role": "senior",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Sarah+Agent&background=7C3AED&color=fff"
+  },
+  {
+    "id": "2",
+    "name": "John Support",
+    "email": "john@ticketflow.com", 
+    "role": "agent",
+    "avatarUrl": "https://ui-avatars.com/api/?name=John+Support&background=7C3AED&color=fff"
+  },
+  {
+    "id": "3",
+    "name": "Lisa Helper",
+    "email": "lisa@ticketflow.com",
+    "role": "agent",
+    "avatarUrl": "https://ui-avatars.com/api/?name=Lisa+Helper&background=7C3AED&color=fff"
+  }
+]

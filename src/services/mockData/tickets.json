@@ -1,0 +1,67 @@
+[
+  {
+    "id": "1",
+    "subject": "Unable to access dashboard after login",
+    "description": "Hi, I'm having trouble accessing my dashboard. After I log in successfully, I get redirected to a blank page instead of my dashboard. This has been happening for the past 2 days. Can you please help me resolve this issue?",
+    "status": "open",
+    "priority": "high",
+    "assigneeId": "1",
+    "customerId": "1",
+    "tags": ["login", "dashboard", "bug"],
+    "createdAt": "2024-01-15T09:30:00Z",
+    "updatedAt": "2024-01-15T09:30:00Z",
+    "channel": "email"
+  },
+  {
+    "id": "2",
+    "subject": "Billing question about recent charge",
+    "description": "I noticed an unexpected charge on my account for $29.99. Could you please explain what this charge is for? I don't recall authorizing any additional services.",
+    "status": "in-progress",
+    "priority": "medium",
+    "assigneeId": "2",
+    "customerId": "2",
+    "tags": ["billing", "charge", "inquiry"],
+    "createdAt": "2024-01-15T10:45:00Z",
+    "updatedAt": "2024-01-15T11:20:00Z",
+    "channel": "chat"
+  },
+  {
+    "id": "3",
+    "subject": "Feature request: Dark mode support",
+    "description": "It would be great if your application supported dark mode. Many users, including myself, prefer dark interfaces, especially when working late hours. This would really improve the user experience.",
+    "status": "open",
+    "priority": "low",
+    "assigneeId": null,
+    "customerId": "3",
+    "tags": ["feature-request", "ui", "dark-mode"],
+    "createdAt": "2024-01-15T14:20:00Z",
+    "updatedAt": "2024-01-15T14:20:00Z",
+    "channel": "api"
+  },
+  {
+    "id": "4",
+    "subject": "Password reset not working",
+    "description": "I've tried to reset my password multiple times using the 'Forgot Password' link, but I'm not receiving any reset emails. I've checked my spam folder as well. Please help me regain access to my account.",
+    "status": "resolved",
+    "priority": "urgent",
+    "assigneeId": "1",
+    "customerId": "4",
+    "tags": ["password", "reset", "email"],
+    "createdAt": "2024-01-14T16:30:00Z",
+    "updatedAt": "2024-01-15T08:45:00Z",
+    "channel": "email"
+  },
+  {
+    "id": "5",
+    "subject": "API rate limit clarification",
+    "description": "I'm developing an integration with your API and need clarification on the rate limits. The documentation mentions 1000 requests per hour, but I'm getting rate limited at around 800 requests. Could you please clarify the actual limits?",
+    "status": "open",
+    "priority": "medium",
+    "assigneeId": "3",
+    "customerId": "5",
+    "tags": ["api", "rate-limit", "documentation"],
+    "createdAt": "2024-01-15T13:15:00Z",
+    "updatedAt": "2024-01-15T13:15:00Z",
+    "channel": "email"
+  }
+]

@@ -1,0 +1,23 @@
+[
+  {
+    "id": "1",
+    "ticketId": "1",
+    "authorId": "1",
+    "content": "Customer reports dashboard issue. Checked logs - seems to be a session timeout problem. Will escalate to dev team.",
+    "createdAt": "2024-01-15T09:45:00Z"
+  },
+  {
+    "id": "2",
+    "ticketId": "2",
+    "authorId": "2", 
+    "content": "Reviewed billing history. The $29.99 charge is for premium feature upgrade that was activated on Jan 10th. Will explain to customer.",
+    "createdAt": "2024-01-15T11:00:00Z"
+  },
+  {
+    "id": "3",
+    "ticketId": "4",
+    "authorId": "1",
+    "content": "Email server issue was causing delivery problems. Reset customer's email in system and sent manual reset link. Issue resolved.",
+    "createdAt": "2024-01-15T08:30:00Z"
+  }
+]
