@@ -57,7 +57,36 @@ class TicketService {
     }
     
     this.tickets.splice(index, 1);
-    return { success: true };
+return { success: true };
+  }
+
+  async bulkUpdate(ticketIds, updates) {
+    await delay(400);
+    const updatedTickets = [];
+    
+    for (const id of ticketIds) {
+      const index = this.tickets.findIndex(t => t.id === id);
+      if (index !== -1) {
+        this.tickets[index] = {
+          ...this.tickets[index],
+          ...updates,
+          updatedAt: new Date().toISOString()
+        };
+        updatedTickets.push({ ...this.tickets[index] });
+      }
+    }
+    
+    return updatedTickets;
+  }
+
+  async search(query) {
+    await delay(250);
+    const lowercaseQuery = query.toLowerCase();
+    return this.tickets.filter(ticket => 
+      ticket.subject.toLowerCase().includes(lowercaseQuery) ||
+      ticket.description.toLowerCase().includes(lowercaseQuery) ||
+      ticket.tags?.some(tag => tag.toLowerCase().includes(lowercaseQuery))
+    );
   }
 
   async getByStatus(status) {
