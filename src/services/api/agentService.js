@@ -53,9 +53,12 @@ class AgentService {
       throw new Error('Agent not found');
     }
     
-    this.agents.splice(index, 1);
+this.agents.splice(index, 1);
     return { success: true };
   }
-}
 
-export default new AgentService();
+  // Alias method for consistency with other services
+  async getAllAgents() {
+    return this.getAll();
+  }
+}
