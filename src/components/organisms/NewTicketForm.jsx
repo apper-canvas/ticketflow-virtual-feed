@@ -1,43 +1,22 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, AlertCircle, ExternalLink } from 'lucide-react';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from 'react';
 import Button from '@/components/atoms/Button';
 import Input from '@/components/atoms/Input';
 import TextArea from '@/components/atoms/TextArea';
 import Select from '@/components/atoms/Select';
 import MultiSelect from '@/components/atoms/MultiSelect';
 import FileUpload from '@/components/atoms/FileUpload';
+import FormField from '@/components/molecules/FormField';
 import SimilarTicketSuggestions from '@/components/atoms/SimilarTicketSuggestions';
-import ticketService from '@/services/api/ticketService';
-import customerService from '@/services/api/customerService';
-import agentService from '@/services/api/agentService';
+import { ticketService } from '@/services/api/ticketService';
+import { customerService } from '@/services/api/customerService';
+import { agentService } from '@/services/api/agentService';
+import { toast } from 'react-toastify';
 
-const priorityOptions = [
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'high', label: 'High' },
-  { value: 'urgent', label: 'Urgent' }
-];
-
-const tagOptions = [
-  { value: 'bug', label: 'Bug' },
-  { value: 'feature-request', label: 'Feature Request' },
-  { value: 'account', label: 'Account' },
-  { value: 'billing', label: 'Billing' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'integration', label: 'Integration' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'security', label: 'Security' },
-  { value: 'ui-ux', label: 'UI/UX' },
-  { value: 'documentation', label: 'Documentation' }
-];
-
-const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
+const NewTicketForm = ({ onSubmit, onCancel, isOpen }) => {
   const [formData, setFormData] = useState({
     subject: '',
     description: '',
-    priority: '',
+    priority: 'medium',
     tags: [],
     customerId: '',
     assigneeId: '',
@@ -45,453 +24,340 @@ const NewTicketForm = ({ isOpen, onClose, onSuccess }) => {
   });
 
   const [errors, setErrors] = useState({});
-const [customers, setCustomers] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customers, setCustomers] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [availableTags, setAvailableTags] = useState([
+    'bug', 'feature-request', 'support', 'billing', 'technical', 'urgent'
+  ]);
   const [similarTickets, setSimilarTickets] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+
+  // Priority options
+  const priorityOptions = [
+    { value: 'low', label: 'Low', color: 'text-green-600' },
+    { value: 'medium', label: 'Medium', color: 'text-yellow-600' },
+    { value: 'high', label: 'High', color: 'text-red-600' },
+    { value: 'urgent', label: 'Urgent', color: 'text-red-800' }
+  ];
+
+  // Load customers and agents on mount
   useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [customersData, agentsData] = await Promise.all([
+          customerService.getAllCustomers(),
+          agentService.getAllAgents()
+        ]);
+        setCustomers(customersData.map(customer => ({
+          value: customer.id,
+          label: `${customer.name} (${customer.email})`
+        })));
+        setAgents(agentsData.map(agent => ({
+          value: agent.id,
+          label: `${agent.name} (${agent.email})`
+        })));
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Failed to load customers and agents');
+      }
+    };
+
     if (isOpen) {
-      loadCustomers();
-      loadAgents();
+      loadData();
     }
   }, [isOpen]);
-// Debounced search for similar tickets
-  const debouncedSearch = useCallback((query) => {
-    const timer = setTimeout(async () => {
-      if (query && query.length > 3) {
-        setSuggestionsLoading(true);
-        try {
-          const similar = await ticketService.findSimilarTickets(query, formData.description);
-          setSimilarTickets(similar.slice(0, 5));
-          setShowSuggestions(true);
-        } catch (error) {
-          console.error('Failed to find similar tickets:', error);
-          setSimilarTickets([]);
-          setShowSuggestions(false);
-        } finally {
-          setSuggestionsLoading(false);
-        }
-      } else {
+
+  // Debounced search for similar tickets
+  useEffect(() => {
+    const searchSimilarTickets = async () => {
+      if (!formData.subject.trim() && !formData.description.trim()) {
         setSimilarTickets([]);
         setShowSuggestions(false);
+        return;
       }
-    }, 300); // 300ms debounce
 
-    return () => clearTimeout(timer);
-  }, [formData.description]);
+      const query = `${formData.subject} ${formData.description}`.trim();
+      if (query.length < 3) {
+        setSimilarTickets([]);
+        setShowSuggestions(false);
+        return;
+      }
 
-  useEffect(() => {
-    const cleanup = debouncedSearch(formData.subject);
-    return cleanup;
-}, [formData.subject, debouncedSearch]);
+      setIsLoadingSuggestions(true);
+      try {
+        const suggestions = await ticketService.findSimilarTickets(query);
+        setSimilarTickets(suggestions);
+        setShowSuggestions(suggestions.length > 0);
+      } catch (error) {
+        console.error('Error searching similar tickets:', error);
+        setSimilarTickets([]);
+        setShowSuggestions(false);
+      } finally {
+        setIsLoadingSuggestions(false);
+      }
+    };
 
-  useEffect(() => {
-    const cleanup = debouncedSearch(formData.description);
-    return cleanup;
-  }, [formData.description, debouncedSearch]);
+    const timeoutId = setTimeout(searchSimilarTickets, 300);
+    return () => clearTimeout(timeoutId);
+  }, [formData.subject, formData.description]);
 
-  const loadCustomers = async () => {
-const loadCustomers = async () => {
-    try {
-      const data = await customerService.getAll();
-      setCustomers(data.map(customer => ({
-        value: customer.id,
-        label: `${customer.name} (${customer.email})`
-      })));
-    } catch (error) {
-      console.error('Failed to load customers:', error);
-    }
-  };
-  const loadAgents = async () => {
-    try {
-      const data = await agentService.getAll();
-      setAgents(data.map(agent => ({
-        value: agent.id,
-        label: agent.name
-      })));
-    } catch (error) {
-      console.error('Failed to load agents:', error);
-    }
-};
-
-  const handleViewTicket = (ticket) => {
-    setSelectedTicket(ticket);
-  };
-
-  const handleCloseTicketView = () => {
-    setSelectedTicket(null);
-  };
-
-  const handleCloseSuggestions = () => {
-    setShowSuggestions(false);
-  };
-
+  // Form validation
   const validateForm = () => {
     const newErrors = {};
 
     if (!formData.subject.trim()) {
       newErrors.subject = 'Subject is required';
-    } else if (formData.subject.length < 5) {
-      newErrors.subject = 'Subject must be at least 5 characters';
     }
 
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
-    } else if (formData.description.length < 10) {
-      newErrors.description = 'Description must be at least 10 characters';
-    }
-
-    if (!formData.priority) {
-      newErrors.priority = 'Priority is required';
     }
 
     if (!formData.customerId) {
       newErrors.customerId = 'Customer is required';
     }
 
+    if (formData.subject.length > 100) {
+      newErrors.subject = 'Subject must be less than 100 characters';
+    }
+
+    if (formData.description.length > 2000) {
+      newErrors.description = 'Description must be less than 2000 characters';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  // Handle input changes
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: null
+      }));
+    }
+  };
+
+  // Handle file uploads
+  const handleFileUpload = (files) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: [...prev.attachments, ...files]
+    }));
+  };
+
+  // Remove attachment
+  const removeAttachment = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      attachments: prev.attachments.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      toast.error('Please fix the form errors');
+      toast.error('Please fix the errors below');
       return;
     }
 
-    setLoading(true);
+    setIsSubmitting(true);
     try {
       const ticketData = {
         ...formData,
-        attachments: formData.attachments.map(file => ({
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          url: file.url
-        }))
+        status: 'open',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
 
-      const newTicket = await ticketService.create(ticketData);
+      const newTicket = await ticketService.createTicket(ticketData);
       toast.success('Ticket created successfully!');
       
       // Reset form
       setFormData({
         subject: '',
         description: '',
-        priority: '',
+        priority: 'medium',
         tags: [],
         customerId: '',
         assigneeId: '',
         attachments: []
       });
-      setErrors({});
-      setSimilarTickets([]);
-      setShowSuggestions(false);
       
-      onSuccess(newTicket);
-      onClose();
+      onSubmit(newTicket);
     } catch (error) {
-      console.error('Failed to create ticket:', error);
+      console.error('Error creating ticket:', error);
       toast.error('Failed to create ticket. Please try again.');
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
-  const handleClose = () => {
-    setFormData({
-      subject: '',
-      description: '',
-      priority: '',
-      tags: [],
-      customerId: '',
-      assigneeId: '',
-      attachments: []
-    });
-    setErrors({});
-    setSimilarTickets([]);
-    setShowSuggestions(false);
-    onClose();
+  // Handle similar ticket click
+  const handleSimilarTicketClick = (ticket) => {
+    // In a real app, this would navigate to the ticket details
+    toast.info(`Similar ticket: ${ticket.subject}`);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-50"
-          onClick={handleClose}
-        />
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="relative w-full max-w-4xl bg-white rounded-xl shadow-xl max-h-[90vh] overflow-hidden"
-        >
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
-            <h2 className="text-xl font-semibold text-gray-900">Create New Ticket</h2>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleClose}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <X size={20} />
-            </Button>
-          </div>
-<form onSubmit={handleSubmit} className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="p-6 border-b border-gray-200">
+          <h2 className="text-2xl font-semibold text-gray-900">Create New Ticket</h2>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <div className="space-y-6">
+              {/* Subject Field */}
+              <div className="relative">
+                <FormField
+                  label="Subject"
+                  required
+                  error={errors.subject}
+                >
                   <Input
-                    label="Subject"
-                    required
                     value={formData.subject}
                     onChange={(e) => handleInputChange('subject', e.target.value)}
-                    error={errors.subject}
-                    placeholder="Brief description of the issue..."
+                    placeholder="Brief description of the issue"
+                    className={errors.subject ? 'border-red-500' : ''}
                   />
-                  
+                </FormField>
+                
+                {/* Similar Tickets Suggestions */}
+                {showSuggestions && (
                   <SimilarTicketSuggestions
-                    suggestions={similarTickets}
-                    loading={suggestionsLoading}
-                    show={showSuggestions}
-                    onViewTicket={handleViewTicket}
-                    onClose={handleCloseSuggestions}
+                    tickets={similarTickets}
+                    isLoading={isLoadingSuggestions}
+                    onTicketClick={handleSimilarTicketClick}
+                    className="mt-2"
                   />
-                </div>
-                <div className="md:col-span-2">
-                  <TextArea
-                    label="Description"
-                    required
-                    rows={4}
-                    maxLength={2000}
-                    showCount
-                    value={formData.description}
-                    onChange={(e) => handleInputChange('description', e.target.value)}
-                    error={errors.description}
-                    placeholder="Detailed description of the issue..."
-                  />
-                </div>
-
-                <div>
-                  <Select
-                    label="Priority"
-                    required
-                    value={formData.priority}
-                    onChange={(value) => handleInputChange('priority', value)}
-                    error={errors.priority}
-                    placeholder="Select priority..."
-                  >
-                    {priorityOptions.map(option => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div>
-                  <Select
-                    label="Customer"
-                    required
-                    value={formData.customerId}
-                    onChange={(value) => handleInputChange('customerId', value)}
-                    error={errors.customerId}
-                    placeholder="Select customer..."
-                  >
-                    {customers.map(customer => (
-                      <option key={customer.value} value={customer.value}>
-                        {customer.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div>
-                  <MultiSelect
-                    label="Tags"
-                    options={tagOptions}
-                    value={formData.tags}
-                    onChange={(value) => handleInputChange('tags', value)}
-                    placeholder="Select tags..."
-                    searchable
-                  />
-                </div>
-
-                <div>
-                  <Select
-                    label="Assign to Agent"
-                    value={formData.assigneeId}
-                    onChange={(value) => handleInputChange('assigneeId', value)}
-                    placeholder="Assign to agent (optional)..."
-                  >
-                    {agents.map(agent => (
-                      <option key={agent.value} value={agent.value}>
-                        {agent.label}
-                      </option>
-                    ))}
-                  </Select>
-                </div>
-
-                <div className="md:col-span-2">
-                  <FileUpload
-                    label="Attachments"
-                    value={formData.attachments}
-                    onChange={(files) => handleInputChange('attachments', files)}
-                    accept="image/*,.pdf,.doc,.docx,.txt"
-                    maxFiles={5}
-                    maxSize={10 * 1024 * 1024} // 10MB
-/>
-                </div>
+                )}
               </div>
+
+              {/* Description Field */}
+              <FormField
+                label="Description"
+                required
+                error={errors.description}
+              >
+                <TextArea
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Detailed description of the issue"
+                  rows={6}
+                  className={errors.description ? 'border-red-500' : ''}
+                />
+              </FormField>
+
+              {/* File Upload */}
+              <FormField label="Attachments">
+                <FileUpload
+                  onFilesSelected={handleFileUpload}
+                  acceptedTypes={['image/*', '.pdf', '.doc', '.docx', '.txt']}
+                  maxSize={10} // 10MB
+                />
+                
+                {/* Display uploaded files */}
+                {formData.attachments.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {formData.attachments.map((file, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                        <span className="text-sm text-gray-700">{file.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeAttachment(index)}
+                          className="text-red-500 hover:text-red-700 text-sm"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </FormField>
             </div>
 
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 bg-gray-50">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={loading}
+            {/* Right Column */}
+            <div className="space-y-6">
+              {/* Customer Selection */}
+              <FormField
+                label="Customer"
+                required
+                error={errors.customerId}
               >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                loading={loading}
-                disabled={loading}
-              >
-Create Ticket
-              </Button>
-            </div>
-          </form>
-        </motion.div>
+                <Select
+                  value={formData.customerId}
+                  onChange={(value) => handleInputChange('customerId', value)}
+                  options={customers}
+                  placeholder="Select a customer"
+                  className={errors.customerId ? 'border-red-500' : ''}
+                />
+              </FormField>
 
-        {/* Selected Ticket View Modal */}
-        <AnimatePresence>
-          {selectedTicket && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 overflow-y-auto"
-              onClick={handleCloseTicketView}
+              {/* Priority Selection */}
+              <FormField label="Priority">
+                <Select
+                  value={formData.priority}
+                  onChange={(value) => handleInputChange('priority', value)}
+                  options={priorityOptions}
+                />
+              </FormField>
+
+              {/* Assignee Selection */}
+              <FormField label="Assign to Agent">
+                <Select
+                  value={formData.assigneeId}
+                  onChange={(value) => handleInputChange('assigneeId', value)}
+                  options={agents}
+                  placeholder="Assign to an agent (optional)"
+                />
+              </FormField>
+
+              {/* Tags Selection */}
+              <FormField label="Tags">
+                <MultiSelect
+                  selectedOptions={formData.tags}
+                  onChange={(tags) => handleInputChange('tags', tags)}
+                  options={availableTags.map(tag => ({ value: tag, label: tag }))}
+                  placeholder="Add tags to categorize the ticket"
+                />
+              </FormField>
+            </div>
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <Button
+              variant="outline"
+              onClick={onCancel}
+              disabled={isSubmitting}
             >
-              <div className="flex min-h-screen items-center justify-center p-4">
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.95 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="relative w-full max-w-2xl bg-white rounded-xl shadow-xl"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                    <div className="flex items-center gap-2">
-                      <ExternalLink size={20} className="text-blue-600" />
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Similar Ticket Details
-                      </h3>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleCloseTicketView}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      <X size={20} />
-                    </Button>
-                  </div>
-
-                  <div className="p-6 space-y-4">
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Subject</h4>
-                      <p className="text-gray-700">{selectedTicket.subject}</p>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Description</h4>
-                      <p className="text-gray-700 whitespace-pre-wrap">{selectedTicket.description}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Status</h4>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          selectedTicket.status === 'resolved' ? 'bg-green-100 text-green-800' :
-                          selectedTicket.status === 'in-progress' ? 'bg-yellow-100 text-yellow-800' :
-                          selectedTicket.status === 'closed' ? 'bg-gray-100 text-gray-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          {selectedTicket.status}
-                        </span>
-                      </div>
-
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Priority</h4>
-                        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                          selectedTicket.priority === 'urgent' ? 'bg-red-100 text-red-800' :
-                          selectedTicket.priority === 'high' ? 'bg-orange-100 text-orange-800' :
-                          selectedTicket.priority === 'medium' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                          {selectedTicket.priority}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <h4 className="font-medium text-gray-900 mb-2">Created</h4>
-                      <p className="text-gray-700">
-                        {new Date(selectedTicket.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-
-                    {selectedTicket.tags && selectedTicket.tags.length > 0 && (
-                      <div>
-                        <h4 className="font-medium text-gray-900 mb-2">Tags</h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedTicket.tags.map(tag => (
-                            <span
-                              key={tag}
-                              className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800"
-                            >
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex justify-end p-6 border-t border-gray-200">
-                    <Button onClick={handleCloseTicketView}>
-                      Close
-                    </Button>
-                  </div>
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              loading={isSubmitting}
+            >
+              {isSubmitting ? 'Creating...' : 'Create Ticket'}
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );
